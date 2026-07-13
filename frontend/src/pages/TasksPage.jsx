@@ -1,3 +1,4 @@
+// Main tasks screen — filters + form + list
 import { useMemo, useState } from 'react';
 import TaskFilters from '../components/TaskFilters';
 import TaskForm from '../components/TaskForm';
@@ -7,6 +8,7 @@ import { useTasks } from '../hooks/useTasks';
 export default function TasksPage() {
   const [filters, setFilters] = useState({ search: '', completed: 'all' });
 
+  // Shape filters for the API hook
   const queryFilters = useMemo(
     () => ({
       search: filters.search || undefined,

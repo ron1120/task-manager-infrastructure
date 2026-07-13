@@ -1,3 +1,4 @@
+// Login form — calls AuthProvider.login() → POST /api/auth/login → JWT in localStorage
 import { useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
@@ -9,6 +10,7 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  // Already logged in → go to tasks
   if (isAuthenticated) {
     return <Navigate to="/" replace />;
   }
@@ -18,7 +20,7 @@ export default function LoginPage() {
     setSubmitting(true);
     setError('');
     try {
-      await login(email, password);
+      await login(email, password); // on success, AuthProvider sets user → redirect above
     } catch (err) {
       setError(err.message || 'Login failed');
     } finally {

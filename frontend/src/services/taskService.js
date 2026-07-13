@@ -1,3 +1,4 @@
+// Frontend calls for /api/tasks/... (all need a JWT via request())
 import { request } from './api';
 
 export async function fetchTasks({ completed, search } = {}) {

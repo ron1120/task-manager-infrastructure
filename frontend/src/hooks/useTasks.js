@@ -1,3 +1,4 @@
+// Loads tasks from the API and exposes add/edit/complete/delete helpers
 import { useCallback, useEffect, useState } from 'react';
 import * as taskService from '../services/taskService';
 
@@ -19,13 +20,14 @@ export function useTasks(filters) {
     }
   }, [filters]);
 
+  // Reload whenever filters change (search / completed)
   useEffect(() => {
     loadTasks();
   }, [loadTasks]);
 
   const addTask = async (task) => {
     const created = await taskService.createTask(task);
-    setTasks((prev) => [created, ...prev]);
+    setTasks((prev) => [created, ...prev]); // prepend new task in UI
   };
 
   const editTask = async (id, updates) => {

@@ -1,3 +1,4 @@
+// Register form — AuthProvider.register() creates account then auto-logs in
 import { useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
@@ -18,7 +19,7 @@ export default function RegisterPage() {
     setSubmitting(true);
     setError('');
     try {
-      await register(email, password);
+      await register(email, password); // register → login → /me → set user
     } catch (err) {
       setError(err.message || 'Registration failed');
     } finally {

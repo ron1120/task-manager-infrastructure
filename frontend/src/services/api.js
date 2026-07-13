@@ -1,5 +1,7 @@
+// Shared HTTP helper for talking to the FastAPI backend
 import { getToken } from '../utils/token';
 
+// Backend base URL (from Vite env, or localhost for local dev)
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 class ApiError extends Error {
@@ -15,6 +17,7 @@ async function request(path, options = {}) {
     ...options.headers,
   };
 
+  // Attach JWT on every request when logged in
   const token = getToken();
   if (token) {
     headers.Authorization = `Bearer ${token}`;
@@ -29,13 +32,14 @@ async function request(path, options = {}) {
     let message = 'Request failed';
     try {
       const data = await response.json();
-      message = data.detail || message;
+      message = data.detail || message; // FastAPI puts errors in `detail`
     } catch {
       // ignore parse errors
     }
     throw new ApiError(message, response.status);
   }
 
+  // DELETE endpoints often return 204 No Content
   if (response.status === 204) {
     return null;
   }

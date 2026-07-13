@@ -1,3 +1,5 @@
+# Task HTTP endpoints → mounted at /api/tasks/...
+# All routes require a valid JWT (get_current_user).
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 

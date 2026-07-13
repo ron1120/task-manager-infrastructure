@@ -1,0 +1,46 @@
+# Run the full stack: db + backend + frontend
+# Usage: docker compose up --build
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: taskuser
+      POSTGRES_PASSWORD: taskpass
+      POSTGRES_DB: taskdb
+    ports:
+      - "5432:5432" # host:container — connect from Mac with localhost:5432
+    volumes:
+      - postgres_data:/var/lib/postgresql/data # keep DB data between restarts
+    healthcheck:
+      # Backend waits until Postgres accepts connections
+      test: ["CMD-SHELL", "pg_isready -U taskuser -d taskdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000" # API + Swagger docs at http://localhost:8000/docs
+    environment:
+      # Inside Docker, hostname `db` resolves to the db service (not localhost)
+      DATABASE_URL: postgresql://taskuser:taskpass@db:5432/taskdb
+      SECRET_KEY: dev-secret-change-in-production
+      CORS_ORIGINS: http://localhost:5173,http://localhost:3000,http://localhost
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Browser calls the API on the host — so use localhost, not the Docker service name
+        VITE_API_URL: http://localhost:8000
+    ports:
+      - "3000:80" # http://localhost:3000
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data: # named volume for Postgres files

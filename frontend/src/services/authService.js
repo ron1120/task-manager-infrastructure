@@ -1,3 +1,4 @@
+// Frontend calls for /api/auth/...
 import { request, API_URL } from './api';
 import { setToken } from '../utils/token';
 
@@ -9,8 +10,9 @@ export async function register(email, password) {
 }
 
 export async function login(email, password) {
+  // OAuth2PasswordRequestForm expects form fields, not JSON
   const body = new URLSearchParams({
-    username: email,
+    username: email, // backend uses "username" field for the email
     password,
   });
 
@@ -26,10 +28,11 @@ export async function login(email, password) {
   }
 
   const data = await response.json();
-  setToken(data.access_token);
+  setToken(data.access_token); // persist JWT for later API calls
   return data;
 }
 
 export async function getCurrentUser() {
+  // Needs Bearer token — returns { id, email, created_at }
   return request('/api/auth/me');
 }

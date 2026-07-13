@@ -1,3 +1,4 @@
+// Shared chrome for logged-in pages (header + logout)
 import { Link, Outlet } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
@@ -21,6 +22,7 @@ export default function Layout() {
         </div>
       </header>
       <main className="app-main">
+        {/* Nested route content renders here (e.g. TasksPage) */}
         <Outlet />
       </main>
     </div>

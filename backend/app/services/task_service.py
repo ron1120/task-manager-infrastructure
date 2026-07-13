@@ -1,3 +1,4 @@
+# Business logic for tasks (used by task routes)
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
@@ -12,6 +13,7 @@ def list_tasks(
     completed: bool | None = None,
     search: str | None = None,
 ) -> list[Task]:
+    # Always scoped to the logged-in user (users only see their own tasks)
     query = db.query(Task).filter(Task.user_id == user.id)
 
     if completed is not None:
@@ -27,6 +29,7 @@ def list_tasks(
 
 
 def get_task(db: Session, user: User, task_id: int) -> Task | None:
+    # Must match both task id AND owner — prevents reading others' tasks
     return (
         db.query(Task)
         .filter(Task.id == task_id, Task.user_id == user.id)
@@ -47,6 +50,7 @@ def create_task(db: Session, user: User, task_in: TaskCreate) -> Task:
 
 
 def update_task(db: Session, task: Task, task_in: TaskUpdate) -> Task:
+    # exclude_unset=True → only apply fields the client actually sent
     updates = task_in.model_dump(exclude_unset=True)
     for field, value in updates.items():
         setattr(task, field, value)
