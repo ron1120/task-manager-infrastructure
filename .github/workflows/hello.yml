@@ -1,0 +1,12 @@
+name: hello-world
+
+on:
+  push:
+  workflow_dispatch: # lets you run it manually from the Actions tab
+
+jobs:
+  say-hello:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Hello
+        run: echo "Hello world"
