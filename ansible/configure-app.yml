@@ -1,0 +1,117 @@
+- name: Configure EC2 for Fullstack Docker Compose Application
+  hosts: all
+  become: true
+
+  handlers:
+    - name: restart docker
+      ansible.builtin.systemd:
+        name: docker
+        state: restarted
+
+  tasks:
+    #################################################################
+    # System updates
+    #################################################################
+
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Upgrade installed packages
+      ansible.builtin.apt:
+        upgrade: safe
+
+    #################################################################
+    # Utility packages
+    #################################################################
+
+    - name: Install required packages
+      ansible.builtin.apt:
+        name:
+          - curl
+          - git
+          - jq
+          - htop
+          - unzip
+          - ca-certificates
+          - gnupg
+          - lsb-release
+          - apt-transport-https
+        state: present
+
+    #################################################################
+    # Docker installation
+    #################################################################
+
+    - name: Check if Docker is already installed
+      ansible.builtin.stat:
+        path: /usr/bin/docker
+      register: docker_binary
+
+    - name: Download Docker installation script
+      ansible.builtin.get_url:
+        url: https://get.docker.com
+        dest: /tmp/get-docker.sh
+        mode: "0755"
+      when: not docker_binary.stat.exists
+
+    - name: Install Docker Engine
+      ansible.builtin.command:
+        cmd: sh /tmp/get-docker.sh
+      args:
+        creates: /usr/bin/docker
+      when: not docker_binary.stat.exists
+
+    #################################################################
+    # Docker configuration
+    #################################################################
+
+    - name: Configure Docker log rotation
+      ansible.builtin.copy:
+        dest: /etc/docker/daemon.json
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          {
+            "log-driver": "json-file",
+            "log-opts": {
+              "max-size": "10m",
+              "max-file": "5"
+            }
+          }
+      notify: restart docker
+
+    - name: Enable and start Docker
+      ansible.builtin.systemd:
+        name: docker
+        enabled: true
+        state: started
+
+    - name: Add ubuntu user to docker group
+      ansible.builtin.user:
+        name: ubuntu
+        groups: docker
+        append: true
+
+    #################################################################
+    # Verify installation
+    #################################################################
+
+    - name: Verify Docker installation
+      ansible.builtin.command:
+        cmd: docker --version
+      changed_when: false
+
+    - name: Verify Docker Compose plugin
+      ansible.builtin.command:
+        cmd: docker compose version
+      changed_when: false
+
+    #################################################################
+    # Reload SSH session to apply docker group membership
+    #################################################################
+
+    - name: Reset SSH connection
+      meta: reset_connection

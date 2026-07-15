@@ -1,0 +1,7 @@
+aws_region         = "us-east-1"
+project_name       = "task-manager"
+key_name           = "RonKey"
+instance_type      = "t3.small"
+root_volume_gb     = 30
+ssh_cidr_blocks    = ["0.0.0.0/0"]
+existing_vpc_id    = ""
