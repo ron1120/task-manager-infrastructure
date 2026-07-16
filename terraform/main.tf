@@ -222,6 +222,17 @@ resource "aws_instance" "app" {
 
 #####################################
 # Elastic IP
+#
+# EIP is created once and kept forever.
+# - prevent_destroy blocks accidental deletion via terraform destroy
+# - If an EIP with tag Name = "${project_name}-eip" already exists,
+#   Terraform reuses it instead of creating a new one
+#
+# To destroy everything EXCEPT the EIP:
+#   ./destroy-keep-eip.sh
+#   # or manually:
+#   terraform state rm 'aws_eip.app[0]'
+#   terraform destroy
 #####################################
 
 data "aws_eips" "existing" {
@@ -243,6 +254,11 @@ resource "aws_eip" "app" {
 
   tags = {
     Name = "${var.project_name}-eip"
+  }
+
+  # Keep this IP after terraform destroy (must state-rm before destroy)
+  lifecycle {
+    prevent_destroy = true
   }
 }
 
@@ -317,6 +333,10 @@ output "instance_id" {
 
 output "instance_public_ip" {
   value = local.eip_public_ip
+}
+
+output "eip_allocation_id" {
+  value = local.eip_allocation_id
 }
 
 output "vpc_id" {

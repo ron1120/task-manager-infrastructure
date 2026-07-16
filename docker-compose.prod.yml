@@ -1,0 +1,15 @@
+# Production / EC2 overrides
+# Usage on EC2:
+#   export PUBLIC_HOST=34.226.19.105   # your Elastic IP
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
+
+services:
+  backend:
+    environment:
+      CORS_ORIGINS: "http://${PUBLIC_HOST}:3000,http://${PUBLIC_HOST},http://localhost:3000"
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: "http://${PUBLIC_HOST}:8000"

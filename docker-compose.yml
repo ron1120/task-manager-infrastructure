@@ -26,6 +26,7 @@ services:
       # Inside Docker, hostname `db` resolves to the db service (not localhost)
       DATABASE_URL: postgresql://taskuser:taskpass@db:5432/taskdb
       SECRET_KEY: dev-secret-change-in-production
+      # For local: localhost. On EC2 use docker-compose.prod.yml (PUBLIC_HOST).
       CORS_ORIGINS: http://localhost:5173,http://localhost:3000,http://localhost
     depends_on:
       db:
@@ -35,7 +36,8 @@ services:
     build:
       context: ./frontend
       args:
-        # Browser calls the API on the host — so use localhost, not the Docker service name
+        # Browser calls this URL — must be reachable from the user's machine.
+        # Local: localhost. EC2: use docker-compose.prod.yml with PUBLIC_HOST.
         VITE_API_URL: http://localhost:8000
     ports:
       - "3000:80" # http://localhost:3000
