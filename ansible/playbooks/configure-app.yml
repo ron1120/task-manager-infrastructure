@@ -1,3 +1,16 @@
+---
+# Reads EIP from your PC (configure-env/.env via inventory.sh → public_host)
+# and writes PUBLIC_HOST on the EC2 server for docker-compose.prod.yml
+- name: Configure EC2 and application
+  hosts: app
+  become: true
+
+  handlers:
+    - name: restart docker
+      ansible.builtin.systemd:
+        name: docker
+        state: restarted
+
   tasks:
     #################################################################
     # System updates
@@ -104,10 +117,10 @@
     #################################################################
 
     - name: Reset SSH connection
-      meta: reset_connection
+      ansible.builtin.meta: reset_connection
 
     #################################################################
-    # Configure application
+    # Application
     #################################################################
 
     - name: Clone application repository
@@ -117,15 +130,20 @@
         version: main
       become_user: ubuntu
 
-    #################################################################
-    # Configure application
-    #################################################################
+    # Local EIP (from configure-env/.env) → PUBLIC_HOST on the server
+    - name: Write PUBLIC_HOST from local EIP into server .env
+      ansible.builtin.copy:
+        dest: /home/ubuntu/task-manager-infrastructure/.env
+        owner: ubuntu
+        group: ubuntu
+        mode: "0644"
+        content: |
+          PUBLIC_HOST={{ public_host }}
 
     - name: Build and start application
       ansible.builtin.command:
-        cmd: docker compose up --build -d
-        dest: /home/ubuntu/task-manager-infrastructure
+        cmd: docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
+        chdir: /home/ubuntu/task-manager-infrastructure
       become_user: ubuntu
-      chdir: /home/ubuntu/task-manager-infrastructure
       environment:
         PUBLIC_HOST: "{{ public_host }}"
