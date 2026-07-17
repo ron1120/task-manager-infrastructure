@@ -1,0 +1,19 @@
+---
+- hosts: app
+  gather_facts: false
+  become: false
+
+  tasks:
+    - name: Get public IP from ifconfig.me
+      ansible.builtin.command:
+        cmd: curl -s ifconfig.me
+      register: eip_result
+      changed_when: false
+
+    - name: Set EIP from curl stdout
+      ansible.builtin.set_fact:
+        EIP: "{{ eip_result.stdout }}"
+
+    - name: Use EIP
+      ansible.builtin.debug:
+        msg: "EIP is {{ EIP }}"

@@ -130,16 +130,20 @@
         version: main
       become_user: ubuntu
 
-    - name: Export EIP as environment variable
+    - name: Get public IP from ifconfig.me
       ansible.builtin.command:
-        cmd: export EIP=$(curl -s ifconfig.me)
-        register: eip
+        cmd: curl -s ifconfig.me
+      register: eip_result
       changed_when: false
 
-    - name: Build and start application
+    - name: Set EIP from curl stdout
+      ansible.builtin.set_fact:
+        EIP: "{{ eip_result.stdout }}"
+
+    - name: Run docker compose up --build -d
       ansible.builtin.command:
         cmd: docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
         chdir: /home/ubuntu/task-manager-infrastructure
       become_user: ubuntu
       environment:
-        EIP: "{{ eip }}"
+        EIP: "{{ EIP }}"
