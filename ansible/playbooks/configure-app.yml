@@ -1,13 +1,3 @@
-- name: Configure EC2 for Fullstack Docker Compose Application
-  hosts: all
-  become: true
-
-  handlers:
-    - name: restart docker
-      ansible.builtin.systemd:
-        name: docker
-        state: restarted
-
   tasks:
     #################################################################
     # System updates
@@ -115,3 +105,27 @@
 
     - name: Reset SSH connection
       meta: reset_connection
+
+    #################################################################
+    # Configure application
+    #################################################################
+
+    - name: Clone application repository
+      ansible.builtin.git:
+        repo: https://github.com/ron1120/task-manager-infrastructure.git
+        dest: /home/ubuntu/task-manager-infrastructure
+        version: main
+      become_user: ubuntu
+
+    #################################################################
+    # Configure application
+    #################################################################
+
+    - name: Build and start application
+      ansible.builtin.command:
+        cmd: docker compose up --build -d
+        dest: /home/ubuntu/task-manager-infrastructure
+      become_user: ubuntu
+      chdir: /home/ubuntu/task-manager-infrastructure
+      environment:
+        PUBLIC_HOST: "{{ public_host }}"
