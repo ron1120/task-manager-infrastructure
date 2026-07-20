@@ -170,6 +170,25 @@ resource "aws_security_group" "app" {
   }
 }
 
+# Separate rules (AWS provider 5.x often ignores new inline ingress on existing SGs)
+resource "aws_vpc_security_group_ingress_rule" "grafana" {
+  security_group_id = aws_security_group.app.id
+  description       = "Grafana"
+  from_port         = 3001
+  to_port           = 3001
+  ip_protocol       = "tcp"
+  cidr_ipv4         = "0.0.0.0/0"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "prometheus" {
+  security_group_id = aws_security_group.app.id
+  description       = "Prometheus"
+  from_port         = 9090
+  to_port           = 9090
+  ip_protocol       = "tcp"
+  cidr_ipv4         = "0.0.0.0/0"
+}
+
 #####################################
 # Ubuntu AMI
 #####################################
