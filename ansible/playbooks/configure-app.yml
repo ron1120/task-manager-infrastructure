@@ -142,8 +142,8 @@
 
     - name: Run docker compose up --build -d
       ansible.builtin.command:
-        cmd: docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
         chdir: /home/ubuntu/task-manager-infrastructure
+        cmd: docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
       become_user: ubuntu
       environment:
         EIP: "{{ EIP }}"
