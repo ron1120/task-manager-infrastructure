@@ -2,7 +2,7 @@
 import { getToken } from '../utils/token';
 
 // Backend base URL (from Vite env, or localhost for local dev)
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
 
 class ApiError extends Error {
   constructor(message, status) {
