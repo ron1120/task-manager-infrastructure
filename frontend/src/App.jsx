@@ -1,5 +1,6 @@
 // App shell: auth context + URL routes
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import HelpChat from './components/HelpChat';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider } from './context/AuthProvider';
@@ -27,6 +28,8 @@ export default function App() {
           {/* Unknown URL → home */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        {/* Round chat button for questions about this repo (shown only when the assistant container is up) */}
+        <HelpChat />
       </BrowserRouter>
     </AuthProvider>
   );

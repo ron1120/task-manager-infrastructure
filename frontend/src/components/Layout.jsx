@@ -1,7 +1,6 @@
 // Shared chrome for logged-in pages (header + logout)
 import { Link, Outlet } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import HelpChat from './HelpChat';
 
 export default function Layout() {
   const { user, logout } = useAuth();
@@ -26,7 +25,6 @@ export default function Layout() {
         {/* Nested route content renders here (e.g. TasksPage) */}
         <Outlet />
       </main>
-      <HelpChat />
     </div>
   );
 }

@@ -56,22 +56,23 @@ Then open Swagger: http://localhost:8000/docs
 
 ---
 
-## Help assistant (pagewise)
+## Chat bot for this repo (pagewise)
 
-An optional extra container, [pagewise](https://github.com/ron1120/pagewise), answers questions about this app from
-its own Markdown docs (this README and the ones under `ansible/`, `terraform/` and `configure-env/`). Every answer
-shows the file and section it came from, and anything the docs don't cover is refused instead of guessed.
+An optional extra container, [pagewise](https://github.com/ron1120/pagewise), runs a RAG chat bot that answers
+questions about this repository: the API and JWT flow, the Docker setup, Terraform, Ansible and CI. It reads the
+repo's Markdown, code and config files (never `.env`, keys or Terraform state), and every answer shows the file
+and line range it came from, with a link. Anything the files don't cover is refused instead of guessed.
 
 ```bash
 echo 'ANTHROPIC_API_KEY=your-key' > .env      # .env is git-ignored
 docker compose --profile assistant up --build
 ```
 
-Log in at http://localhost:3000 and use the **Help** button in the corner. The frontend's nginx forwards
-`/assistant/` to the container (`frontend/nginx.conf`), so the browser only talks to one origin. Without
-`--profile assistant` nothing changes: the container does not start and the Help button stays hidden. The chat page
-and API are also at http://localhost:8010. While developing pagewise itself, build from a local checkout with
-`PAGEWISE_SRC=../pagewise docker compose --profile assistant up --build`.
+Open http://localhost:3000 and click the round chat button in the bottom-right corner (it appears on every page).
+The bot runs in its own container; the frontend's nginx forwards `/assistant/` to it (`frontend/nginx.conf`), so
+the browser only talks to one origin. Without `--profile assistant` nothing changes: the container does not start and
+the button stays hidden. The bot's own page and API are also at http://localhost:8010. While developing pagewise
+itself, build from a local checkout with `PAGEWISE_SRC=../pagewise docker compose --profile assistant up --build`.
 
 ---
 
