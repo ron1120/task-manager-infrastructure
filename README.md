@@ -56,6 +56,25 @@ Then open Swagger: http://localhost:8000/docs
 
 ---
 
+## Help assistant (pagewise)
+
+An optional extra container, [pagewise](https://github.com/ron1120/pagewise), answers questions about this app from
+its own Markdown docs (this README and the ones under `ansible/`, `terraform/` and `configure-env/`). Every answer
+shows the file and section it came from, and anything the docs don't cover is refused instead of guessed.
+
+```bash
+echo 'ANTHROPIC_API_KEY=your-key' > .env      # .env is git-ignored
+docker compose --profile assistant up --build
+```
+
+Log in at http://localhost:3000 and use the **Help** button in the corner. The frontend's nginx forwards
+`/assistant/` to the container (`frontend/nginx.conf`), so the browser only talks to one origin. Without
+`--profile assistant` nothing changes: the container does not start and the Help button stays hidden. The chat page
+and API are also at http://localhost:8010. While developing pagewise itself, build from a local checkout with
+`PAGEWISE_SRC=../pagewise docker compose --profile assistant up --build`.
+
+---
+
 ## Learn the API with curl
 
 Base URL: `http://localhost:8000`

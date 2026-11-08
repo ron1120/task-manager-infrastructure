@@ -1,5 +1,7 @@
 # Run the full stack: db + backend + frontend + monitoring
 # Usage: docker compose up --build
+# With the help assistant (pagewise, answers questions about this app from its docs):
+#   docker compose --profile assistant up --build
 services:
   db:
     image: postgres:16-alpine
@@ -43,6 +45,26 @@ services:
       - "3000:80" # http://localhost:3000
     depends_on:
       - backend
+
+  # Help assistant. It reads this repo's Markdown docs and answers questions about the app, citing the file each
+  # answer came from. The frontend reaches it through nginx at /assistant/ (see frontend/nginx.conf).
+  # Needs ANTHROPIC_API_KEY (put it in a .env file next to this one, which is git-ignored).
+  pagewise:
+    profiles: ["assistant"]
+    # Local checkout instead of GitHub: PAGEWISE_SRC=../pagewise docker compose --profile assistant up --build
+    build: ${PAGEWISE_SRC:-https://github.com/ron1120/pagewise.git#main}
+    environment:
+      - ANTHROPIC_API_KEY # passed through from your shell or .env; never written in this file
+      - ANTHROPIC_BASE_URL # optional: only set it to point at a test double
+      - PAGEWISE_MODEL # optional, defaults to claude-sonnet-5-5
+      - PAGEWISE_DOCS_DIR=/docs
+      - PAGEWISE_SOURCE_NAME=the project docs
+      - PAGEWISE_DOCS_BASE_URL=https://github.com/ron1120/task-manager-infrastructure/blob/main
+      - PAGEWISE_EXAMPLES=How do I log in with curl?|What does a 401 mean?|Which ports does the stack use?|What is the weather in Paris?
+    volumes:
+      - .:/docs:ro # the repo's own Markdown files are the knowledge base
+    ports:
+      - "8010:8000" # chat page and API, for trying it directly: http://localhost:8010
 
   prometheus:
     image: prom/prometheus:v2.54.1
