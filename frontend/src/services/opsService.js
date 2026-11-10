@@ -37,3 +37,10 @@ export const createApiKey = (name, source) =>
 export const revokeApiKey = (id) => request(`/api/api-keys/${id}`, { method: 'DELETE' });
 
 export const listAudit = (params) => request(`/api/audit${query(params)}`);
+
+export const listFindings = (params) => request(`/api/findings${query(params)}`);
+export const getFindingStats = () => request('/api/findings/stats');
+export const setFindingStatus = (id, status, reason) =>
+  request(`/api/findings/${id}/status`, { method: 'POST', body: JSON.stringify({ status, reason: reason || null }) });
+export const openFindingIncident = (id) => request(`/api/findings/${id}/incident`, { method: 'POST' });
+export const listScans = (limit = 10) => request(`/api/scans${query({ limit })}`);

@@ -1,0 +1,127 @@
+name: security
+
+# Scans the code, the Dockerfiles, the dependencies, the git history and both images. Pull requests and pushes fail on
+# anything new and serious. A weekly run catches vulnerabilities published after the code last changed. On main and on
+# the schedule, the full unfiltered results are also sent to the findings tracker (see scripts/upload-scan.sh).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "17 5 * * 1"
+
+permissions:
+  contents: read
+
+env:
+  TRIVY: aquasec/trivy:0.76.2
+  GITLEAKS: zricethezav/gitleaks:v8.30.1
+  HADOLINT: hadolint/hadolint:v2.15.1
+  # What fails the build: HIGH or CRITICAL, with a fix available, and not listed in .trivyignore.yaml.
+  GATE: --exit-code 1 --severity HIGH,CRITICAL --ignore-unfixed --ignorefile /repo/.trivyignore.yaml -q
+
+jobs:
+  secrets:
+    name: secrets (gitleaks, full history)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # --redact keeps the secret itself out of the log. Reviewed findings are listed in .gitleaksignore.
+      - run: docker run --rm -v "$PWD":/repo:ro "$GITLEAKS" detect --source /repo --redact --no-banner --exit-code 1
+
+  dockerfiles:
+    name: Dockerfiles (hadolint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          for f in backend/Dockerfile frontend/Dockerfile; do
+            echo "== $f"
+            docker run --rm -i "$HADOLINT" hadolint --failure-threshold warning - < "$f"
+          done
+
+  dependencies:
+    name: dependencies (pip-audit, npm audit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install pip-audit && pip-audit -r backend/requirements.txt
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm ci && npm audit --omit=dev --audit-level=high
+        working-directory: frontend
+
+  files:
+    name: code and infrastructure (trivy fs)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          # $GATE is several flags on purpose, so it is left unquoted.
+          # shellcheck disable=SC2086
+          docker run --rm -v "$PWD":/repo:ro "$TRIVY" fs $GATE --scanners vuln,secret,misconfig /repo
+
+  images:
+    name: images (trivy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          docker build -t task-manager-backend:ci backend
+          docker build -t task-manager-frontend:ci frontend
+      - run: |
+          # shellcheck disable=SC2086
+          for image in task-manager-backend:ci task-manager-frontend:ci; do
+            echo "== $image"
+            docker run --rm -v "$PWD":/repo:ro -v /var/run/docker.sock:/var/run/docker.sock "$TRIVY" image $GATE --scanners vuln,secret "$image"
+          done
+
+  upload:
+    name: send results to the findings tracker
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    env:
+      INCIDENTS_URL: ${{ secrets.INCIDENTS_URL }}
+      INCIDENTS_KEY: ${{ secrets.INCIDENTS_KEY }}
+    steps:
+      - name: No tracker configured
+        if: env.INCIDENTS_URL == ''
+        run: echo "Add the INCIDENTS_URL and INCIDENTS_KEY secrets to upload scan results. Skipping."
+      - uses: actions/checkout@v4
+        if: env.INCIDENTS_URL != ''
+        with:
+          fetch-depth: 0
+      # Unfiltered scans (no .trivyignore.yaml, no .gitleaksignore), so a risk accepted there stays visible in the
+      # tracker as accepted instead of looking fixed. Build failures are decided by the jobs above, not here (--exit-code 0).
+      - name: Scan
+        if: env.INCIDENTS_URL != ''
+        run: |
+          mkdir -p reports
+          docker build -t task-manager-backend:ci backend
+          docker build -t task-manager-frontend:ci frontend
+          trivy() { docker run --rm -v "$PWD":/repo:ro -v "$PWD/reports":/out -v /var/run/docker.sock:/var/run/docker.sock "$TRIVY" "$@"; }
+          trivy image -q -f json -o /out/trivy-backend.json --scanners vuln,secret task-manager-backend:ci
+          trivy image -q -f json -o /out/trivy-frontend.json --scanners vuln,secret task-manager-frontend:ci
+          trivy fs -q -f json -o /out/trivy-files.json --scanners vuln,secret,misconfig /repo
+          # An empty file mounted over .gitleaksignore makes gitleaks report the already-reviewed findings too.
+          : > "$RUNNER_TEMP/no-ignore"
+          docker run --rm -v "$PWD":/repo:ro -v "$RUNNER_TEMP/no-ignore":/repo/.gitleaksignore:ro -v "$PWD/reports":/out "$GITLEAKS" detect --source /repo --redact --no-banner --exit-code 0 -f json -r /out/gitleaks.json
+          docker run --rm -i "$HADOLINT" hadolint -f json - < backend/Dockerfile > reports/hadolint-backend.json || true
+          docker run --rm -i "$HADOLINT" hadolint -f json - < frontend/Dockerfile > reports/hadolint-frontend.json || true
+      - name: Upload
+        if: env.INCIDENTS_URL != ''
+        run: |
+          up() { scripts/upload-scan.sh "$1" "reports/$2" "$3" "$GITHUB_SHA" "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"; }
+          up trivy trivy-backend.json backend-image
+          up trivy trivy-frontend.json frontend-image
+          up trivy trivy-files.json repo-files
+          up gitleaks gitleaks.json git-history
+          up hadolint hadolint-backend.json backend/Dockerfile
+          up hadolint hadolint-frontend.json frontend/Dockerfile

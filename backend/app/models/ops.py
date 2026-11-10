@@ -10,7 +10,11 @@ from app.database.base import Base
 ROLES = ("viewer", "analyst", "admin")
 SEVERITIES = ("P1", "P2", "P3", "P4")
 STATUSES = ("open", "triaged", "mitigated", "resolved")
-SOURCES = ("manual", "github_actions", "alertmanager", "ci_triage", "generic")
+SOURCES = ("manual", "github_actions", "alertmanager", "ci_triage", "generic", "scanner")
+
+FINDING_SEVERITIES = ("critical", "high", "medium", "low", "unknown")  # most severe first
+FINDING_STATUSES = ("open", "accepted", "fixed")
+FINDING_KINDS = ("vulnerability", "secret", "misconfig", "lint")
 
 # Hours allowed to resolve an incident, by severity. sla_due_at = created_at + this.
 SLA_HOURS = {"P1": 4, "P2": 24, "P3": 72, "P4": 168}
@@ -108,3 +112,58 @@ class ApiKey(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class Scan(Base):
+    """One upload of scanner output (a Trivy run, a gitleaks run...). Kept so the history and trend are visible."""
+
+    __tablename__ = "scans"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    scanner: Mapped[str] = mapped_column(String(30), nullable=False, index=True)
+    target: Mapped[str] = mapped_column(String(255), nullable=False)  # what was scanned: an image, a repo path...
+    ref: Mapped[str | None] = mapped_column(String(100), nullable=True)  # commit SHA
+    run_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    complete: Mapped[bool] = mapped_column(default=True, nullable=False)  # a full scan can mark missing findings fixed
+    total: Mapped[int] = mapped_column(Integer, nullable=False)
+    new_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    fixed_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    by_severity: Mapped[dict] = mapped_column(JSON, nullable=False)
+    actor: Mapped[str] = mapped_column(String(255), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class Finding(Base):
+    """One problem a scanner found: a vulnerable package, a leaked secret, a risky config, a lint error.
+
+    The same problem found again is the same row (last_seen_at moves). A problem that stops appearing in a full scan
+    of the same target becomes `fixed`; one that comes back is reopened. Secret values are never stored.
+    """
+
+    __tablename__ = "findings"
+    __table_args__ = (UniqueConstraint("scanner", "target", "fingerprint", name="uq_finding_identity"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    fingerprint: Mapped[str] = mapped_column(String(40), nullable=False)
+    scanner: Mapped[str] = mapped_column(String(30), nullable=False, index=True)
+    kind: Mapped[str] = mapped_column(String(20), nullable=False)
+    target: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    rule_id: Mapped[str] = mapped_column(String(100), nullable=False, index=True)  # CVE-..., generic-api-key, DS-0002
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    severity: Mapped[str] = mapped_column(String(10), nullable=False, index=True)
+    package: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    installed_version: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    fixed_version: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    location: Mapped[str | None] = mapped_column(String(500), nullable=True)  # file path, or file:line
+    url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
+    status: Mapped[str] = mapped_column(String(10), nullable=False, default="open", index=True)
+    status_reason: Mapped[str | None] = mapped_column(Text, nullable=True)  # why a risk was accepted
+    status_by: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    occurrences: Mapped[int] = mapped_column(Integer, nullable=False, default=1)  # how many scans reported it
+    incident_id: Mapped[int | None] = mapped_column(ForeignKey("incidents.id", ondelete="SET NULL"), nullable=True)
+
+    first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    fixed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

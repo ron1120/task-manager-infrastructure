@@ -159,6 +159,7 @@ resource "aws_security_group" "app" {
   # PostgreSQL should only be accessible through Docker networking.
 
   egress {
+    description = "Allow outbound traffic (package installs, image pulls)"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
@@ -231,6 +232,7 @@ resource "aws_instance" "app" {
   root_block_device {
     volume_size           = var.root_volume_gb
     volume_type           = "gp3"
+    encrypted             = true
     delete_on_termination = true
   }
 

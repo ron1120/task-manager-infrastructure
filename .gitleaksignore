@@ -1,0 +1,4 @@
+# Findings reviewed and accepted. One fingerprint per line (commit:file:rule:line).
+# README.md line 97 in the first docs commit: an example "access_token" in the API docs, not a credential.
+# The current README uses an obviously truncated placeholder instead.
+09632d80ca671b3108bda9123842e703b131f38e:README.md:generic-api-key:97

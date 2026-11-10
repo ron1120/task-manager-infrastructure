@@ -5,7 +5,7 @@ from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram, gene
 from sqlalchemy.orm import Session
 
 from app.models import Incident
-from app.services import incident_service
+from app.services import finding_service, incident_service
 
 # Request metrics live for the life of the process and are updated by the middleware in app/main.py.
 REGISTRY = CollectorRegistry()
@@ -27,4 +27,8 @@ def render(db: Session) -> bytes:
     for severity in ("P1", "P2", "P3", "P4"):
         open_by_severity.labels(severity).set(summary["open_by_severity"][severity] if summary else 0)
     breached.set(summary["breached"] if summary else 0)
+    open_findings = Gauge("findings_open", "Open security findings by severity", ["severity"], registry=gauges)
+    finding_summary = finding_service.stats(db)
+    for severity, count in finding_summary["open_by_severity"].items():
+        open_findings.labels(severity).set(count)
     return generate_latest(REGISTRY) + generate_latest(gauges)

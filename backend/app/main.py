@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from prometheus_client import CONTENT_TYPE_LATEST
 from sqlalchemy.orm import Session
 
-from app.api.routes import admin, auth, incidents, intake, tasks
+from app.api.routes import admin, auth, findings, incidents, intake, tasks
 from app.core import metrics
 from app.core.config import settings
 from app.database.session import get_db
@@ -22,13 +22,23 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+def route_template(request: Request) -> str:
+    """The URL with each path parameter replaced by its name, e.g. /api/incidents/{incident_id}.
+
+    Built from the real URL, not from route.path: newer FastAPI gives a router's routes paths relative to the router.
+    Unmatched URLs (404s for random paths) share one label so scanners cannot create endless metric series.
+    """
+    if request.scope.get("route") is None:
+        return "unmatched"
+    values = {str(v): name for name, v in request.scope.get("path_params", {}).items()}
+    return "/".join("{%s}" % values[part] if part in values else part for part in request.url.path.split("/"))
+
+
 @app.middleware("http")
 async def record_metrics(request: Request, call_next):
     started = time.perf_counter()
     response = await call_next(request)
-    # Use the route template (/api/incidents/{incident_id}), not the URL, so the label set stays small.
-    route = request.scope.get("route")
-    metrics.observe(request.method, route.path if route else "unmatched", response.status_code, started)
+    metrics.observe(request.method, route_template(request), response.status_code, started)
     return response
 
 
@@ -36,6 +46,7 @@ async def record_metrics(request: Request, call_next):
 app.include_router(auth.router, prefix="/api")
 app.include_router(tasks.router, prefix="/api")
 app.include_router(incidents.router, prefix="/api")
+app.include_router(findings.router, prefix="/api")
 app.include_router(intake.router, prefix="/api")
 app.include_router(admin.router, prefix="/api")
 

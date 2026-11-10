@@ -9,6 +9,7 @@ import AdminPage from './pages/AdminPage';
 import IncidentDetailPage from './pages/IncidentDetailPage';
 import IncidentsPage from './pages/IncidentsPage';
 import LoginPage from './pages/LoginPage';
+import SecurityPage from './pages/SecurityPage';
 import RegisterPage from './pages/RegisterPage';
 import TasksPage from './pages/TasksPage';
 
@@ -28,6 +29,7 @@ export default function App() {
               <Route index element={<TasksPage />} /> {/* "/" */}
               <Route path="incidents" element={<IncidentsPage />} />
               <Route path="incidents/:id" element={<IncidentDetailPage />} />
+              <Route path="security" element={<SecurityPage />} />
               <Route path="admin" element={<RequireRole role="admin"><AdminPage /></RequireRole>} />
             </Route>
           </Route>

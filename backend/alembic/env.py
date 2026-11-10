@@ -5,7 +5,7 @@ from sqlalchemy import engine_from_config, pool
 
 from app.core.config import settings
 from app.database.base import Base
-from app.models import ApiKey, AuditLog, Incident, IncidentEvent, Task, User  # noqa: F401
+from app.models import ApiKey, AuditLog, Finding, Incident, IncidentEvent, Scan, Task, User  # noqa: F401
 
 config = context.config
 

@@ -7,9 +7,9 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field
 Severity = Literal["P1", "P2", "P3", "P4"]
 Status = Literal["open", "triaged", "mitigated", "resolved"]
 Role = Literal["viewer", "analyst", "admin"]
-Source = Literal["manual", "github_actions", "alertmanager", "ci_triage", "generic"]
+Source = Literal["manual", "github_actions", "alertmanager", "ci_triage", "generic", "scanner"]
 # The sources an API key can be issued for: everything except people typing into the UI.
-KeySource = Literal["github_actions", "alertmanager", "ci_triage", "generic"]
+KeySource = Literal["github_actions", "alertmanager", "ci_triage", "generic", "scanner"]
 
 
 # ---- incidents -------------------------------------------------------------------------------------------------
@@ -233,3 +233,82 @@ class CiTriageReport(_Loose):
     branch: str | None = Field(default=None, max_length=255)
     default_branch: str | None = "main"
     diagnosis: TriageDiagnosis
+
+
+# ---- findings (DevSecOps scans) ---------------------------------------------------------------------------------------
+FindingSeverity = Literal["critical", "high", "medium", "low", "unknown"]
+FindingKind = Literal["vulnerability", "secret", "misconfig", "lint"]
+
+
+class FindingResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    scanner: str
+    kind: str
+    target: str
+    rule_id: str
+    title: str
+    description: str | None
+    severity: str
+    package: str | None
+    installed_version: str | None
+    fixed_version: str | None
+    location: str | None
+    url: str | None
+    status: str
+    status_reason: str | None
+    status_by: str | None
+    occurrences: int
+    incident_id: int | None
+    first_seen_at: datetime
+    last_seen_at: datetime
+    fixed_at: datetime | None
+
+
+class FindingList(BaseModel):
+    items: list[FindingResponse]
+    total: int
+    limit: int
+    offset: int
+
+
+class FindingStats(BaseModel):
+    open_total: int
+    open_by_severity: dict[str, int]
+    open_by_kind: dict[str, int]
+    fixable_open: int  # open vulnerabilities that already have a fixed version
+    oldest_open_critical_days: int | None
+    last_scan_at: datetime | None
+
+
+class FindingStatusChange(BaseModel):
+    status: Literal["open", "accepted"]
+    reason: str | None = Field(default=None, max_length=2000)
+
+
+class ScanResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    scanner: str
+    target: str
+    ref: str | None
+    run_url: str | None
+    complete: bool
+    total: int
+    new_count: int
+    fixed_count: int
+    by_severity: dict
+    actor: str
+    created_at: datetime
+
+
+class ScanResult(BaseModel):
+    scan_id: int
+    total: int
+    new: int
+    reopened: int
+    fixed: int
+    unchanged: int
+    incident_ids: list[int] = []

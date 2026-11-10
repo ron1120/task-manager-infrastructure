@@ -20,3 +20,10 @@ def test_metric_labels_use_route_templates_not_raw_urls(client, analyst_headers)
     client.get("/api/incidents/12345", headers=analyst_headers)  # does not exist
     text = client.get("/metrics").text
     assert 'path="/api/incidents/{incident_id}"' in text and "12345" not in text
+
+
+def test_unmatched_urls_share_one_label(client):
+    client.get("/api/does-not-exist-1")
+    client.get("/another/random/path")
+    text = client.get("/metrics").text
+    assert 'path="unmatched"' in text and "does-not-exist" not in text and "random" not in text

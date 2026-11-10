@@ -116,6 +116,7 @@ shown once; only its SHA-256 is stored. Each key works for one source and can be
 | `POST /api/intake/github-actions` | `github_actions` | A failed workflow run becomes an incident (P2 on the default branch, else P3). Post GitHub's `workflow_run` event as is. |
 | `POST /api/intake/alertmanager` | `alertmanager` | Firing alerts open incidents (critical P1, high or error P2, warning P3, info P4). A resolved alert moves a triaged incident to `mitigated`; a person still closes it. |
 | `POST /api/intake/ci-triage` | `ci_triage` | The ci-triage-agent's diagnosis is added to the incident for that run, or opens one. |
+| `POST /api/intake/scan/{trivy,gitleaks,hadolint}` | `scanner` | Scanner JSON becomes findings (see Security scanning below). |
 | `POST /api/intake/generic` | `generic` | `{title, severity, service, environment, description, external_id, evidence}` |
 
 The same event reported again (same source and id) is one incident with a higher `occurrences` count, and a repeat of a
@@ -165,6 +166,60 @@ and an incident opens within about 10 seconds.
 - `/metrics` has no login, like most exporters. Do not publish port 8000 beyond a trusted network.
 - Failed logins are audited but not yet rate limited.
 - Tasks, the older feature, are untouched and still work for every role.
+
+---
+
+## Security scanning (DevSecOps)
+
+Every push, pull request and a weekly schedule run `.github/workflows/security.yml`, and the results land in the
+findings tracker at http://localhost:3000/security.
+
+| Check | Tool | Fails the build on |
+|---|---|---|
+| Leaked secrets, full git history | gitleaks (`--redact`, so the value never reaches the log) | any leak not in `.gitleaksignore` |
+| Dockerfile quality | Hadolint | any warning or error |
+| Python and npm dependencies | pip-audit, `npm audit --omit=dev` | known vulnerabilities (npm: high or worse) |
+| Code, dependency files, Terraform, Dockerfiles | Trivy `fs` (vulnerabilities, secrets, misconfiguration) | HIGH or CRITICAL with a fix, not in `.trivyignore.yaml` |
+| Both container images | Trivy `image` | HIGH or CRITICAL with a fix, not in `.trivyignore.yaml` |
+
+Scanner versions are pinned in the workflow. A risk we have looked at and accepted goes in `.trivyignore.yaml` (or
+`.gitleaksignore`) **with a reason and an expiry date**, so it comes back for a fresh decision instead of being forgotten.
+
+**The findings tracker.** On `main` and on the weekly run the workflow also uploads the *unfiltered* scan, so an accepted
+risk stays visible as accepted instead of looking fixed. Upload by hand with the same script:
+
+```bash
+INCIDENTS_URL=http://localhost:8000 INCIDENTS_KEY=ops_... \
+  scripts/upload-scan.sh trivy report.json [target] [commit-sha] [run-url]     # also: gitleaks, hadolint
+```
+
+The key must have source `scanner` (Admin > API keys). In CI, add the secrets `INCIDENTS_URL` and `INCIDENTS_KEY`;
+without them the upload job skips itself. The endpoint is `POST /api/intake/scan/{trivy|gitleaks|hadolint}` and takes the
+scanner's own JSON, unchanged.
+
+- **One row per problem.** The same finding in the next scan is the same row (`last seen` moves, `occurrences` goes up).
+- **Fixed by itself.** A finding that is missing from a full scan of the same target is marked `fixed`; if it comes back it is
+  reopened. Pass `complete=false` for a partial scan (for example one pull request) so nothing is closed by mistake.
+- **Accept a risk.** An analyst accepts a finding with a written reason (at least 5 characters). It stays accepted across
+  scans, and the reason, the person and the time are in the audit log. Only a scan can mark a finding fixed.
+- **Incidents, only for what needs action today.** A leaked secret opens a P1 incident; new CRITICAL vulnerabilities or
+  misconfigurations open a P2, once per scan. Lint and lower severities do not. Any finding can also get an incident by hand.
+- **Secret values are never stored.** Parsers drop gitleaks' `Secret` and `Match`, Trivy's secret `Match`, and commit author
+  names and emails before anything is written; a test searches every table to prove it. Only the rule and where it is are kept.
+- `/metrics` also exports `findings_open{severity}`.
+
+**What the scanners found here, and what changed.** The first scans reported 1,194 findings, including 8 critical.
+`python-jose` had two critical CVEs in the library that signs login tokens (replaced with PyJWT); `python-multipart`, `pytest`,
+`react-router-dom` and the old FastAPI/Starlette had known vulnerabilities (upgraded); the frontend image sat on an end-of-life
+Alpine with 215 fixable findings (new nginx base); and the backend installed `gcc` it did not need and ran as root (both
+removed). After the fixes: 0 critical, 187 open (nearly all unfixed Debian packages in the Python base image), 14 accepted
+with reasons, and the build gates pass. The remaining accepted risks are listed in `.trivyignore.yaml`.
+
+**Known limits.**
+- Findings in the base image are only as fresh as the image tag; rebuilding on a newer base is how most of them close.
+- The tracker matches findings by scanner, target and a fingerprint. Renaming a scan target looks like a new set of findings.
+- Trivy is the only vulnerability scanner so far; the dev default `SECRET_KEY` is still short (PyJWT warns about it) and should
+  be a long random value anywhere real.
 
 ---
 

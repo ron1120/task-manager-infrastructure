@@ -1,7 +1,8 @@
 # Auth helpers: password hashing (bcrypt) + JWT create/decode
 from datetime import datetime, timedelta, timezone
 
-from jose import JWTError, jwt
+import jwt
+from jwt import PyJWTError
 from passlib.context import CryptContext
 
 from app.core.config import settings
@@ -35,5 +36,5 @@ def decode_access_token(token: str) -> str | None:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         subject = payload.get("sub")
         return str(subject) if subject else None
-    except JWTError:
+    except PyJWTError:
         return None

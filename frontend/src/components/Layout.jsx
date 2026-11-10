@@ -20,6 +20,9 @@ export default function Layout() {
           <NavLink to="/incidents" className="button secondary">
             Incidents
           </NavLink>
+          <NavLink to="/security" className="button secondary">
+            Security
+          </NavLink>
           {hasRole(user, 'admin') && (
             <NavLink to="/admin" className="button secondary">
               Admin

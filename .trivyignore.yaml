@@ -1,0 +1,50 @@
+# Risks we have looked at and accepted for now. Each has a reason and an expiry date, after which the
+# scanner reports it again so it gets a fresh decision. Nothing here is hidden from the findings tracker:
+# CI uploads the unfiltered scan there, and this file only decides what fails the build.
+vulnerabilities:
+  - id: CVE-2026-76844
+    statement: Debian zlib1g in the python base image. No newer base image carries the fix yet.
+    expired_at: 2026-12-10
+  - id: CVE-2026-85091
+    statement: Debian zlib1g in the python base image. No newer base image carries the fix yet.
+    expired_at: 2026-12-10
+  - id: CVE-2025-47273
+    statement: False positive. Scanner reads setuptools 70.3.0 from an old base-image layer; the final image contains only setuptools 84.2.1 (checked by searching the whole filesystem).
+    expired_at: 2026-12-10
+  - id: CVE-2026-59890
+    statement: Same false positive as CVE-2025-47273.
+    expired_at: 2026-12-10
+  - id: GHSA-xmj3-9gf7-h52w
+    statement: Same false positive as CVE-2025-47273.
+    expired_at: 2026-12-10
+  - id: CVE-2026-4738
+    statement: Alpine zlib in the nginx base image. Waiting for an nginx image built on a newer Alpine.
+    expired_at: 2026-12-10
+  - id: CVE-2026-53666
+    statement: react-router 6.x. The fix exists only in v7, which needs a router migration of the whole frontend.
+    expired_at: 2026-12-31
+  - id: CVE-2026-53669
+    statement: react-router 6.x. The fix exists only in v7, which needs a router migration of the whole frontend.
+    expired_at: 2026-12-31
+
+misconfigurations:
+  - id: DS-0002
+    paths: ["frontend/Dockerfile"]
+    statement: The nginx master process must bind port 80, so it starts as root and runs its workers as nginx. Moving to the unprivileged image changes the port, which the Helm chart in aws-eks-platform also depends on.
+    expired_at: 2026-12-31
+  - id: AWS-0104
+    paths: ["terraform/main.tf"]
+    statement: The instance needs outbound internet for package installs and image pulls.
+    expired_at: 2026-12-31
+  - id: AWS-0107
+    paths: ["terraform/main.tf"]
+    statement: Development default. Set ssh_cidr_blocks to your own address in terraform.tfvars before applying.
+    expired_at: 2026-12-31
+  - id: AWS-0164
+    paths: ["terraform/main.tf"]
+    statement: This is a public demo instance and needs a public address.
+    expired_at: 2026-12-31
+  - id: AWS-0178
+    paths: ["terraform/main.tf"]
+    statement: VPC flow logs cost money and a single-instance demo VPC does not justify them yet.
+    expired_at: 2026-12-31
