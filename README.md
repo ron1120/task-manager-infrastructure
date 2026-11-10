@@ -76,6 +76,98 @@ itself, build from a local checkout with `PAGEWISE_SRC=../pagewise docker compos
 
 ---
 
+## Incident tracker (DevOps and security operations)
+
+Besides tasks, the app is an incident and alert tracker: failed CI runs, Prometheus alerts and anything else that can
+send JSON become **incidents** with a severity, a deadline (SLA), an owner and a timeline. Open it at
+http://localhost:3000/incidents.
+
+```
+GitHub Actions failure / ci-triage-agent / Alertmanager alert / any JSON    (API key, one per source)
+        |
+   POST /api/intake/...   ->   Incident  ->  triage, assign, comment, resolve   ->  Audit log
+                                  |
+                              /metrics (open incidents by severity, past SLA)  ->  Prometheus
+```
+
+**Incidents.** Severity P1 to P4 sets the deadline: P1 4 hours, P2 24 hours, P3 72 hours, P4 7 days. Status moves
+`open -> triaged -> mitigated -> resolved` (a resolved incident can be reopened; other jumps return 409). The first step
+out of `open` is the acknowledgement, so the dashboard shows MTTA and MTTR for the last 30 days. Every status change,
+comment, assignment and severity change goes on the incident's timeline.
+
+**Roles.** The first account created is the admin; everyone after that starts as an analyst.
+
+| Role | Can |
+|---|---|
+| viewer | read incidents and stats |
+| analyst | also open, update, assign, comment on and move incidents |
+| admin | also manage API keys and roles, and read the audit log |
+
+**Audit log.** Every change records who did it (a person, or `key:<name>` for a machine), what, which object, and
+from which IP: incidents, API keys, role changes, logins and failed logins. Entries are only ever added; there is no
+endpoint to edit or delete them. Passwords, tokens and API keys are never written to it.
+
+**API keys.** Machines authenticate with a key created by an admin (Admin page, or `POST /api/api-keys`). The key is
+shown once; only its SHA-256 is stored. Each key works for one source and can be revoked at once. Send it as
+`X-API-Key: ops_...` or `Authorization: Bearer ops_...`.
+
+| Endpoint | Source key | What it does |
+|---|---|---|
+| `POST /api/intake/github-actions` | `github_actions` | A failed workflow run becomes an incident (P2 on the default branch, else P3). Post GitHub's `workflow_run` event as is. |
+| `POST /api/intake/alertmanager` | `alertmanager` | Firing alerts open incidents (critical P1, high or error P2, warning P3, info P4). A resolved alert moves a triaged incident to `mitigated`; a person still closes it. |
+| `POST /api/intake/ci-triage` | `ci_triage` | The ci-triage-agent's diagnosis is added to the incident for that run, or opens one. |
+| `POST /api/intake/generic` | `generic` | `{title, severity, service, environment, description, external_id, evidence}` |
+
+The same event reported again (same source and id) is one incident with a higher `occurrences` count, and a repeat of a
+resolved incident reopens it.
+
+**Report CI failures from GitHub Actions.** Add this workflow to a repository you want to watch, with the secrets
+`INCIDENTS_URL` and `INCIDENTS_KEY`. The event goes through an environment variable, never into the shell command, so
+a branch name or commit message cannot inject commands:
+
+```yaml
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+jobs:
+  report:
+    if: github.event.workflow_run.conclusion == 'failure'
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          URL: ${{ secrets.INCIDENTS_URL }}
+          KEY: ${{ secrets.INCIDENTS_KEY }}
+          EVENT: ${{ toJSON(github.event) }}
+        run: |
+          printf '%s' "$EVENT" | curl --fail -sS -X POST "$URL/api/intake/github-actions" \
+            -H "X-API-Key: $KEY" -H "Content-Type: application/json" --data @-
+```
+
+**Turn Prometheus alerts into incidents.** The API exposes `/metrics` (request counts and latency, plus
+`incidents_open{severity}` and `incidents_breached`), Prometheus loads the rules in `monitoring/alerts.yml`, and an
+Alertmanager container posts alerts to the intake:
+
+```bash
+# 1. create a key with source "alertmanager" on the Admin page, then save it (the file is git-ignored)
+printf '%s' 'ops_...' > monitoring/intake.key
+# 2. start everything, including Alertmanager
+docker compose --profile alerting up --build
+```
+
+Try it without breaking anything by sending Alertmanager a test alert:
+`curl -X POST localhost:9093/api/v2/alerts -H 'Content-Type: application/json' -d '[{"labels":{"alertname":"Test","severity":"critical","service":"demo"}}]'`
+and an incident opens within about 10 seconds.
+
+**Known limits.**
+- An alert about the tracker itself (for example `BackendDown`) cannot be delivered while the tracker is down.
+  Alertmanager keeps retrying, but in practice route those alerts to Slack or email as well.
+- `/metrics` has no login, like most exporters. Do not publish port 8000 beyond a trusted network.
+- Failed logins are audited but not yet rate limited.
+- Tasks, the older feature, are untouched and still work for every role.
+
+---
+
 ## Learn the API with curl
 
 Base URL: `http://localhost:8000`

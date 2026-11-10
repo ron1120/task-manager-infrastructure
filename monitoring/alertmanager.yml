@@ -1,0 +1,19 @@
+# Sends every alert, firing and resolved, to the incident tracker.
+# The API key is read from monitoring/intake.key (git-ignored). Create one in the app under Admin > API keys
+# with source "alertmanager", then: printf '%s' 'ops_...' > monitoring/intake.key
+route:
+  receiver: incident-tracker
+  group_by: [alertname, service]
+  group_wait: 10s
+  group_interval: 1m
+  repeat_interval: 4h
+
+receivers:
+  - name: incident-tracker
+    webhook_configs:
+      - url: http://backend:8000/api/intake/alertmanager
+        send_resolved: true
+        http_config:
+          authorization:
+            type: Bearer
+            credentials_file: /etc/alertmanager/intake.key

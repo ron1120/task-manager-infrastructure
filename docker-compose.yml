@@ -1,5 +1,6 @@
 # Run the full stack: db + backend + frontend + monitoring
 # Usage: docker compose up --build
+# With alerts turned into incidents (Alertmanager, needs monitoring/intake.key): add `--profile alerting`.
 # With the help assistant (pagewise, answers questions about this app from its docs):
 #   docker compose --profile assistant up --build
 services:
@@ -75,7 +76,21 @@ services:
       - "9090:9090" # http://localhost:9090
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/alerts.yml:/etc/prometheus/alerts.yml
       - prometheus_data:/prometheus
+    depends_on:
+      - backend
+
+  # Turns Prometheus alerts into incidents. Needs monitoring/intake.key first (see monitoring/alertmanager.yml):
+  #   docker compose --profile alerting up
+  alertmanager:
+    profiles: ["alerting"]
+    image: prom/alertmanager:v0.27.0
+    ports:
+      - "9093:9093" # http://localhost:9093
+    volumes:
+      - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - ./monitoring/intake.key:/etc/alertmanager/intake.key:ro
     depends_on:
       - backend
 

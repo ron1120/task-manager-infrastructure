@@ -1,0 +1,26 @@
+# Alert rules. Prometheus sends firing alerts to Alertmanager, which posts them to the incident tracker
+# (POST /api/intake/alertmanager), so each one becomes an incident with the alert's labels as evidence.
+groups:
+  - name: task-manager
+    rules:
+      - alert: BackendDown
+        expr: up{job="task-manager-api"} == 0
+        for: 30s
+        labels:
+          severity: critical
+          service: task-manager-api
+          env: dev
+        annotations:
+          summary: Task Manager API is down
+          description: Prometheus could not scrape the API's /metrics for more than 30 seconds.
+
+      - alert: HighServerErrorRate
+        expr: sum(rate(http_requests_total{status=~"5.."}[5m])) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+          service: task-manager-api
+          env: dev
+        annotations:
+          summary: The API is returning server errors
+          description: More than 0.1 requests per second have answered with a 5xx status for 2 minutes.

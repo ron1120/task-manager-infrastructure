@@ -12,7 +12,9 @@ def get_user_by_email(db: Session, email: str) -> User | None:
 
 def create_user(db: Session, user_in: UserCreate) -> User:
     # Hash password before saving — never store plaintext
-    user = User(email=user_in.email, hashed_password=hash_password(user_in.password))
+    # The very first account becomes the admin; everyone after that starts as an analyst.
+    role = "admin" if db.query(User).count() == 0 else "analyst"
+    user = User(email=user_in.email, hashed_password=hash_password(user_in.password), role=role)
     db.add(user)
     db.commit()
     db.refresh(user)  # reload so we get id / created_at from DB

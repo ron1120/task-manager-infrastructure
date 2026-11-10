@@ -30,3 +30,6 @@ htmlcov/
 !terraform.tfvars.example
 .terraform.lock.hcl
 crash.log
+
+# Alertmanager API key for the incident tracker
+monitoring/intake.key

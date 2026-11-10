@@ -13,6 +13,8 @@ class User(Base):
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)  # never store plain password
+    # viewer < analyst < admin. The first account created is the admin; everyone else starts as analyst.
+    role: Mapped[str] = mapped_column(String(20), default="analyst", server_default="analyst", nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
