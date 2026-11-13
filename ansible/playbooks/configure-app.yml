@@ -125,7 +125,7 @@
 
     - name: Clone application repository
       ansible.builtin.git:
-        repo: https://github.com/ron1120/task-manager-infrastructure.git
+        repo: https://github.com/rronss/task-manager-infrastructure.git
         dest: /home/ubuntu/task-manager-infrastructure
         version: main
       become_user: ubuntu

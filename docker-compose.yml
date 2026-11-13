@@ -54,7 +54,7 @@ services:
   pagewise:
     profiles: ["assistant"]
     # Local checkout instead of GitHub: PAGEWISE_SRC=../pagewise docker compose --profile assistant up --build
-    build: ${PAGEWISE_SRC:-https://github.com/ron1120/pagewise.git#main}
+    build: ${PAGEWISE_SRC:-https://github.com/rronss/pagewise.git#main}
     environment:
       - ANTHROPIC_API_KEY # passed through from your shell or .env; never written in this file
       - ANTHROPIC_BASE_URL # optional: only set it to point at a test double
@@ -64,7 +64,7 @@ services:
       - PAGEWISE_SOURCE_NAME=this repository's files
       - PAGEWISE_TOP_K=6
       - PAGEWISE_MIN_SCORE=0.3
-      - PAGEWISE_DOCS_BASE_URL=https://github.com/ron1120/task-manager-infrastructure/blob/main
+      - PAGEWISE_DOCS_BASE_URL=https://github.com/rronss/task-manager-infrastructure/blob/main
     volumes:
       - .:/docs:ro # the repo itself, read-only, is the knowledge base
     ports:

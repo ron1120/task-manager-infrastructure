@@ -58,7 +58,7 @@ Then open Swagger: http://localhost:8000/docs
 
 ## Chat bot for this repo (pagewise)
 
-An optional extra container, [pagewise](https://github.com/ron1120/pagewise), runs a RAG chat bot that answers
+An optional extra container, [pagewise](https://github.com/rronss/pagewise), runs a RAG chat bot that answers
 questions about this repository: the API and JWT flow, the Docker setup, Terraform, Ansible and CI. It reads the
 repo's Markdown, code and config files (never `.env`, keys or Terraform state), and every answer shows the file
 and line range it came from, with a link. Anything the files don't cover is refused instead of guessed.

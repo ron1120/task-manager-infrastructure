@@ -1,7 +1,7 @@
 from app.models import ApiKey, AuditLog, Incident
 
 
-def gh_event(run_id=100, conclusion="failure", branch="main", repo="ron1120/app", name="CI", default="main"):
+def gh_event(run_id=100, conclusion="failure", branch="main", repo="rronss/app", name="CI", default="main"):
     return {
         "action": "completed",
         "workflow_run": {
@@ -79,7 +79,7 @@ def test_a_failed_run_on_the_default_branch_is_a_p2_incident(client, admin_heade
     assert result["created"] == 1 and result["updated"] == 0 and result["ignored"] == 0
     incident = client.get(f"/api/incidents/{result['incident_ids'][0]}", headers=admin_headers).json()
     assert incident["severity"] == "P2" and incident["source"] == "github_actions"
-    assert incident["service"] == "ron1120/app" and incident["environment"] == "ci"
+    assert incident["service"] == "rronss/app" and incident["environment"] == "ci"
     assert incident["title"] == "CI failed: CI on main"
     assert incident["evidence"]["run_url"].endswith("/runs/100") and incident["evidence"]["head_sha"] == "abc123"
     assert "key:github-ci" in incident["events"][0]["actor"]
@@ -201,7 +201,7 @@ def test_too_many_alerts_in_one_request_is_refused(client, make_key):
 
 
 # ---- ci-triage-agent ------------------------------------------------------------------------------------------------
-def triage(run_id=100, category="infra_failure", confidence="high", branch="main", repo="ron1120/app"):
+def triage(run_id=100, category="infra_failure", confidence="high", branch="main", repo="rronss/app"):
     return {
         "repo": repo, "run_id": run_id, "run_url": f"https://github.com/{repo}/actions/runs/{run_id}",
         "workflow": "CI", "branch": branch, "default_branch": "main",
@@ -231,7 +231,7 @@ def test_a_triage_report_opens_an_incident_when_ci_intake_never_saw_the_run(clie
     assert result["created"] == 1
     incident = client.get(f"/api/incidents/{result['incident_ids'][0]}", headers=admin_headers).json()
     assert incident["source"] == "ci_triage" and incident["severity"] == "P2"  # a real failure on the default branch
-    assert incident["title"] == "[real_failure] CI failed in ron1120/app" and incident["evidence"]["diagnosis"]["next_step"]
+    assert incident["title"] == "[real_failure] CI failed in rronss/app" and incident["evidence"]["diagnosis"]["next_step"]
 
 
 def test_triage_severity_depends_on_the_diagnosis(client, admin_headers, make_key):
